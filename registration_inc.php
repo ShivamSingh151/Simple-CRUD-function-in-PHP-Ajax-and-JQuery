@@ -42,16 +42,24 @@ function get_data(){
         $pg_no = intval($_REQUEST["pgno"]);
         $offset = ($pg_no - 1) * $limit;
     }
+    $id = 1;
 
     $conn = _conenct_db();
 
-    $sql = "SELECT * FROM users WHERE id=?"; // SQL with parameters
+    $sql = "SELECT * FROM emp WHERE id=?"; // SQL with parameters
     $stmt = $conn->prepare($sql); 
-    $stmt->bind_param("i", 1);
+    $stmt->bind_param("i", $id);
     $stmt->execute();
     $result = $stmt->get_result();
-    pr($result, 1);
-    $user = $result->fetch_assoc();
+
+    if($result->num_rows > 0){
+        $arr_response["status"] = 1;
+        $arr_response["message"] = "Done.";
+        $arr_response["data_count"] = $result->num_rows;
+        $arr_response["data"] = $result->fetch_assoc();
+    }
+
+    $stmt->close();
 
     return $arr_response;
 }
@@ -104,18 +112,33 @@ function save_data(){
                 }
                 
                 if($uploadStatus == 1){ 
-                    $db = _conenct_db();
+                    $conn = _conenct_db();
                     
                     // Insert form data in the database 
                     if($id == 0){
-                        $sql = $db->query("INSERT INTO emp (name, email, photo) VALUES ('".$name."','".$email."','".$photo."')");
+                        $sql = "INSERT INTO emp (name, email, photo) VALUES (?, ?, ?)";
                     }else{
-                        $sql = $db->query("UPDATE emp SET name = '".$name."', email = '".$email."', photo = '".$photo."' WHERE id= '$id'");
+                        $sql = "UPDATE emp SET name = ?, email = ?, photo = ? WHERE id= ?";
                     }
 
-                    if($sql){ 
-                        $arr_response['status'] = 1; 
-                        $arr_response['message'] = 'Form data submitted successfully!'; 
+                    if($sql != ""){
+                        $stmt = $conn->prepare($sql); 
+                        
+                        if($id > 0){
+                            $stmt->bind_param("sssi", $name, $email, $photo, $id);
+                        }else{
+                            $stmt->bind_param("sss", $name, $email, $photo);
+                        }
+                        
+                        if($stmt->execute()){
+                            // $stmt->affected_rows
+                            // $stmt->insert_id
+                            $arr_response['status'] = 1;
+                            $arr_response['message'] = 'Form data submitted successfully!'; 
+                        }else{
+                            $arr_response['message'] = 'Error in mqsql query!'; 
+                        }
+                        
                     }
                 } 
             } 
